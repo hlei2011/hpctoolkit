@@ -288,6 +288,9 @@ SampledDesc::toValueTyStringXML() const
     case ComputedTy_Final:
       DIAG_Assert(type() != TyNULL, "");
       return "final";
+
+    case ComputedTy_Formula:
+      return "formula";
   }
   DIAG_Die(DIAG_Unimplemented);
 }
@@ -328,6 +331,9 @@ DerivedDesc::toValueTyStringXML() const
 
     case ComputedTy_Final:
       return "derived";
+
+    case ComputedTy_Formula:
+      return "formula";
   }
   DIAG_Die(DIAG_Unimplemented);
 }
@@ -368,6 +374,9 @@ DerivedIncrDesc::toValueTyStringXML() const
       
     case ComputedTy_Final:
       return "derived";
+
+    case ComputedTy_Formula:
+      return "formula";
   }
   DIAG_Die(DIAG_Unimplemented);
 }

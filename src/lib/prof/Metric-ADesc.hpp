@@ -443,6 +443,10 @@ public:
     int len = strlen(str_formula);
     m_formula = new char[len];
     strcpy(m_formula, str_formula);
+
+    // we have hpcrun math formula.
+    // this means this metric is special, needs to be treated differently
+    computedType(ComputedTy_Formula);
   }
 
   char*
@@ -458,7 +462,8 @@ public:
   enum ComputedTy {
     ComputedTy_NULL = 0, // no aggregegation from leaves to interior nodes
     ComputedTy_NonFinal, // non-finalized values
-    ComputedTy_Final     // finalized values
+    ComputedTy_Final,    // finalized values
+    ComputedTy_Formula   // formula given by hpcrun, to be computed by hpcviewer
   };
 
   ComputedTy
@@ -467,7 +472,17 @@ public:
 
   void
   computedType(ComputedTy x)
-  { m_computedTy = x; }
+  {
+    // FIXME: if the formula from hpcrun exist, we ignore setting the type
+    //        in the future we should use the class instead of this type.
+
+    if (formula() != NULL) {
+      m_computedTy = ComputedTy_Formula;
+      return;
+    }
+
+    m_computedTy = x;
+  }
 
 
   // -------------------------------------------------------
