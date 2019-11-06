@@ -77,6 +77,8 @@
 
 #include <lib/support/diagnostics.h>
 
+#define ORDER_ARTIFICIAL_METRIC -1
+
 //*************************** Forward Declarations **************************//
 
 namespace Prof {
@@ -109,7 +111,7 @@ public:
       m_dbId(id_NULL), m_dbNumMetrics(0),
       m_num_samples(0), m_isMultiplexed(false),
       m_period_mean(0), m_sampling_type(FREQUENCY),
-	  m_isTemporary(false), m_formula(NULL)
+	  m_isTemporary(false), m_formula(NULL), m_order(ORDER_ARTIFICIAL_METRIC)
   { }
 
   ADesc(const char* nameBase, const char* description,
@@ -123,7 +125,7 @@ public:
       m_dbId(id_NULL), m_dbNumMetrics(0),
       m_num_samples(0), m_isMultiplexed(false),
       m_period_mean(0), m_sampling_type(FREQUENCY),
-	  m_isTemporary(false), m_formula(NULL)
+	  m_isTemporary(false), m_formula(NULL), m_order(ORDER_ARTIFICIAL_METRIC)
   {
     std::string nm = (nameBase) ? nameBase : "";
     nameFromString(nm);
@@ -140,7 +142,7 @@ public:
       m_dbId(id_NULL), m_dbNumMetrics(0),
       m_num_samples(0), m_isMultiplexed(false),
       m_period_mean(0), m_sampling_type(FREQUENCY),
-	  m_isTemporary(false), m_formula(NULL)
+	  m_isTemporary(false), m_formula(NULL), m_order(ORDER_ARTIFICIAL_METRIC)
   {
     nameFromString(nameBase);
   }
@@ -158,7 +160,7 @@ public:
       m_dbId(x.m_dbId), m_dbNumMetrics(x.m_dbNumMetrics),
       m_num_samples(x.m_num_samples), m_isMultiplexed(x.m_isMultiplexed),
       m_period_mean(x.m_period_mean), m_sampling_type(x.m_sampling_type),
-	  m_isTemporary(false), m_formula(x.m_formula)
+	  m_isTemporary(false), m_formula(x.m_formula), m_order(x.m_order)
   { }
 
   ADesc&
@@ -187,6 +189,7 @@ public:
 
       m_isTemporary   = x.m_isTemporary;
       m_formula       = x.m_formula;
+      m_order         = x.m_order;
     }
     return *this;
   }
@@ -207,6 +210,13 @@ public:
   void
   id(uint id)
   { m_id = id; }
+
+  int
+  order() const
+  { return m_order; }
+
+  void order(int order)
+  { m_order = order; }
 
 
   // -------------------------------------------------------
@@ -608,7 +618,11 @@ private:
 
   bool m_isTemporary;
 
+  // hpcrun formula
   char *m_formula;
+
+  // hpcrun metric order
+  int m_order;
 };
 
 

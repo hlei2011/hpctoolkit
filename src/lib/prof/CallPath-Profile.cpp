@@ -766,6 +766,7 @@ Profile::writeXML_hdr(std::ostream& os, uint metricBeg, uint metricEnd,
     // Metric
     os << "    <Metric i" << MakeAttrNum(i)
        << " n" << MakeAttrStr(m->name())
+       << " o" << MakeAttrNum(m->order())
        << " v=\""  << m->toValueTyStringXML() << "\""
        << " em=\"" << m->isMultiplexed()      << "\""
        << " es=\"" << m->num_samples()        << "\""
@@ -785,31 +786,36 @@ Profile::writeXML_hdr(std::ostream& os, uint metricBeg, uint metricEnd,
       // to an 'accumulator')
       string combineFrm;
       if (mDrvdExpr) {
-	combineFrm = mDrvdExpr->combineString1();
+        combineFrm = mDrvdExpr->combineString1();
 
-	for (uint k = 1; k < mDrvdExpr->numAccum(); ++k) {
-	  uint mId = mDrvdExpr->accumId(k);
-	  string frm = mDrvdExpr->combineString2();
-	  metricIdToFormula.insert(std::make_pair(mId, frm));
-	}
+        for (uint k = 1; k < mDrvdExpr->numAccum(); ++k) {
+          uint mId = mDrvdExpr->accumId(k);
+          string frm = mDrvdExpr->combineString2();
+          metricIdToFormula.insert(std::make_pair(mId, frm));
+        }
       }
       else {
-	// must represent accumulator 2
-	uint mId = m->id();
-	UIntToStringMap::iterator it = metricIdToFormula.find(mId);
-	DIAG_Assert((it != metricIdToFormula.end()), DIAG_UnexpectedInput);
-	combineFrm = it->second;
+        // must represent accumulator 2
+        uint mId = m->id();
+        UIntToStringMap::iterator it = metricIdToFormula.find(mId);
+        DIAG_Assert((it != metricIdToFormula.end()), DIAG_UnexpectedInput);
+        combineFrm = it->second;
       }
 
       // 1. MetricFormula: combine
       os << "      <MetricFormula t=\"combine\""
-	 << " frm=\"" << combineFrm << "\"/>\n";
+          << " frm=\"" << combineFrm << "\"/>\n";
 
       // 2. MetricFormula: finalize
       if (mDrvdExpr) {
-	os << "      <MetricFormula t=\"finalize\""
-	   << " frm=\"" << mDrvdExpr->finalizeString() << "\"/>\n";
+        os << "      <MetricFormula t=\"finalize\""
+            << " frm=\"" << mDrvdExpr->finalizeString() << "\"/>\n";
       }
+    }
+    if (m->formula() != NULL) {
+      // 3. MetricFormula: raw formula from hpcrun
+      os << "      <MetricFormula t=\"raw\""
+         << " frm=\"" << m->formula() << "\"/>\n";
     }
     
     // Info
@@ -1316,6 +1322,7 @@ Profile::fmt_epoch_fread(Profile* &prof, FILE* infs, uint rFlags,
     // keep the show status consistent between hpcrun and experiment.xml
     m->isVisible(mdesc.flags.fields.show == 1);
     m->doDispPercent(mdesc.flags.fields.showPercent == 1);
+    m->order(i);
 
     if (doMakeInclExcl) {
       m->type(Metric::ADesc::TyIncl);

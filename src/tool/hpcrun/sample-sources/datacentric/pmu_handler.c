@@ -102,12 +102,12 @@ struct perf_mem_metric {
 
 static struct perf_mem_metric metric;
 
-#if 0
 static char formula_llc_miss[MAX_FORMULA_CHAR];
+#if 0
 static char formula_percent_l1_hit[MAX_FORMULA_CHAR];
 static char formula_percent_l2_hit[MAX_FORMULA_CHAR];
-#endif
 static char formula_percent_l3_hit[MAX_FORMULA_CHAR];
+#endif
 
 static char FORMAT_PERCENT[] = "6.2f \%";
 
@@ -317,7 +317,7 @@ pmu_handler_init()
   // percent l3 hit
   // ------------------------------------------
 
-#if 1
+#if 0
   int percent_llc_hit = hpcrun_new_metric();
   metric_desc_t* metric_llc_hit_desc = hpcrun_set_metric_and_attributes(percent_llc_hit,  "% Load LLC Hit",
                       MetricFlags_ValFmt_Real, 1, metric_property_none, true /* disable show*/, false );
@@ -365,7 +365,7 @@ pmu_handler_init()
    * llc_miss =
    *   = miss_dram_lcl + miss_dram_rmt + mem_rmt_hit + mem_rmt_hitm
    */
-#if 0
+#if 1
   metric.memllc_miss = hpcrun_new_metric();
 
   metric_desc_t* metric_desc = hpcrun_set_metric_info(metric.memllc_miss, "MEM-LLC-miss");
