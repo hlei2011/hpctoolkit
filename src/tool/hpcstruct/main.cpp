@@ -100,9 +100,9 @@ realmain(int argc, char* argv[]);
 
 //***************************** Analyze Cubins ******************************
 
-static const char* cubins_analysis_makefile =
-#include "cubins-analysis.h"
-;
+//static const char* cubins_analysis_makefile =
+//#include "cubins-analysis.h"
+//;
 
 //
 // For a measurements directory, write a Makefile and launch hpcstruct
@@ -112,6 +112,7 @@ static void
 doMeasurementsDir(string measurements_dir, BAnal::Struct::Options & opts)
 {
   measurements_dir = RealPath(measurements_dir.c_str());
+  vector<string> filenms;
 
   //
   // Check that 'measurements_dir' has at least one .cubin file.
@@ -131,28 +132,22 @@ doMeasurementsDir(string measurements_dir, BAnal::Struct::Options & opts)
     exit(1);
   }
 
+  //Add each .cubin file to vector filenms
   while ((ent = readdir(dir)) != NULL) {
     string file_name(ent->d_name);
     if (file_name.find(".cubin") != string::npos) {
-      found = true;
-      break;
+      filenms.push_back(file_name);
     }
   }
+  if (filenms.size() != 0) {
+      found = true;
+  }
 
-  if (! found) {
+  if(! found) {
     PRINT_ERROR("Measurements directory does not contain cubins: " << cubins_dir);
     exit(1);
   }
   closedir(dir);
-
-  //
-  // Put hpctoolkit and cuda (nvdisasm) on path.
-  //
-  char *path = getenv("PATH");
-  string new_path = string(HPCTOOLKIT_INSTALL_PREFIX) + "/bin/"
-    + ":" + path + ":" + CUDA_INSTALL_PREFIX + "/bin/";
-
-  setenv("PATH", new_path.c_str(), 1);
 
   //
   // Write Makefile and launch analysis.
@@ -160,30 +155,33 @@ doMeasurementsDir(string measurements_dir, BAnal::Struct::Options & opts)
   string structs_dir = measurements_dir + "/structs";
   mkdir(structs_dir.c_str(), 0755);
 
-  string makefile_name = structs_dir + "/Makefile";
-  fstream makefile;
-  makefile.open(makefile_name, fstream::out | fstream::trunc);
+#pragma omp parallel for
+  for(unsigned int i = 0; i < filenms.size(); i++) {
 
-  if (! makefile.is_open()) {
-    DIAG_EMsg("Unable to write file: " << makefile_name);
-    exit(1);
+      string outputfile = structs_dir + "/" + filenms[i] + ".hpcstruct";
+      string inputname = cubins_dir + "/" + filenms[i];
+
+      std::ostringstream msg;
+      msg << "outputfile:" << outputfile << "\n";
+      msg << "inputfile:" << inputname << "\n";
+      std::cout << msg.str();
+
+      std::ostream* outFile = IOUtil::OpenOStream(outputfile.c_str());
+      char* outBuf = new char[HPCIO_RWBufferSz];
+
+      std::streambuf* os_buf = outFile->rdbuf();
+      os_buf->pubsetbuf(outBuf, HPCIO_RWBufferSz);
+
+      std::string gapsName = "";
+      std::ostream* gapsFile = NULL;
+
+      BAnal::Struct::makeStructure(inputname.c_str(), outFile, gapsFile, gapsName.c_str(),
+                                   "", opts);
+      IOUtil::CloseStream(outFile);
+      delete[] outBuf;
+
   }
 
-  string gpucfg = opts.compute_gpu_cfg ? "yes" : "no";
-
-  makefile << "CUBINS_DIR =  " << cubins_dir << "\n"
-	   << "STRUCTS_DIR = " << structs_dir << "\n"
-	   << "CUBIN_CFG = " << gpucfg << "\n\n"
-	   << cubins_analysis_makefile << endl;
-  makefile.close();
-
-  string make_cmd = string("make -C ") + structs_dir + " -k -j " + to_string(opts.jobs)
-    + " --silent --no-print-directory analyze";
-
-  if (system(make_cmd.c_str()) != 0) {
-    DIAG_EMsg("Make hpcstruct files for cubins failed.");
-    exit(1);
-  }
 }
 
 //****************************** Main Program *******************************
@@ -214,60 +212,59 @@ main(int argc, char* argv[])
 
 
 static int
-realmain(int argc, char* argv[])
-{
-  Args args(argc, argv);
-  BAnal::Struct::Options opts;
+realmain(int argc, char* argv[]) {
+    Args args(argc, argv);
+    BAnal::Struct::Options opts;
 
-  RealPathMgr::singleton().searchPaths(args.searchPathStr);
-  RealPathMgr::singleton().realpath(args.in_filenm);
+    RealPathMgr::singleton().searchPaths(args.searchPathStr);
+    RealPathMgr::singleton().realpath(args.in_filenm);
 
-  // ------------------------------------------------------------
-  // Parameters on how to run hpcstruct
-  // ------------------------------------------------------------
+    // ------------------------------------------------------------
+    // Parameters on how to run hpcstruct
+    // ------------------------------------------------------------
 
 #ifdef ENABLE_OPENMP
-  opts.jobs = args.jobs;
-  opts.jobs_parse = args.jobs_parse;
-  opts.jobs_symtab = args.jobs_symtab;
+    opts.jobs = args.jobs;
+    opts.jobs_parse = args.jobs_parse;
+    opts.jobs_symtab = args.jobs_symtab;
 
-  // default is to run serial (for correctness), unless --jobs is
-  // specified.
-  if (opts.jobs < 1) {
-    opts.jobs = 1;
-  }
-  if (opts.jobs_parse < 1) {
-    opts.jobs_parse = opts.jobs;
-  }
+    // default is to run serial (for correctness), unless --jobs is
+    // specified.
+    if (opts.jobs < 1) {
+      opts.jobs = 1;
+    }
+    if (opts.jobs_parse < 1) {
+      opts.jobs_parse = opts.jobs;
+    }
 
-  // libdw is not yet thread-safe, so run symtab serial unless
-  // specifically requested.
-  if (opts.jobs_symtab < 1) {
-    opts.jobs_symtab = 1;
-  }
-  omp_set_num_threads(1);
+    // libdw is not yet thread-safe, so run symtab serial unless
+    // specifically requested.
+    if (opts.jobs_symtab < 1) {
+      opts.jobs_symtab = 1;
+    }
+    omp_set_num_threads(1);
 #else
-  opts.jobs = 1;
-  opts.jobs_parse = 1;
-  opts.jobs_symtab = 1;
+    opts.jobs = 1;
+    opts.jobs_parse = 1;
+    opts.jobs_symtab = 1;
 #endif
 
-  opts.show_time = args.show_time;
-  opts.compute_gpu_cfg = args.compute_gpu_cfg;
+    opts.show_time = args.show_time;
+    opts.compute_gpu_cfg = args.compute_gpu_cfg;
 
-  // ------------------------------------------------------------
-  // If in_filenm is a directory, then analyze separately
-  // ------------------------------------------------------------
-  struct stat sb;
+    // ------------------------------------------------------------
+    // If in_filenm is a directory, then analyze separately
+    // ------------------------------------------------------------
+    struct stat sb;
 
-  if (stat(args.in_filenm.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
-    doMeasurementsDir(args.in_filenm, opts);
-    return 0;
-  }
+    if (stat(args.in_filenm.c_str(), &sb) == 0 && S_ISDIR(sb.st_mode)) {
+        doMeasurementsDir(args.in_filenm, opts);
+        return 0;
+    }
 
-  // ------------------------------------------------------------
-  // Single application binary
-  // ------------------------------------------------------------
+    // ------------------------------------------------------------
+    // Single application binary
+    // ------------------------------------------------------------
 
   const char* osnm = (args.out_filenm == "-") ? NULL : args.out_filenm.c_str();
   std::ostream* outFile = IOUtil::OpenOStream(osnm);
